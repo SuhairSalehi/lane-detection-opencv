@@ -58,6 +58,33 @@ def average_lines(image, lines):
         lanes.append(make_coordinates(image, right_avg))
 
     return np.array(lanes)
+def compute_center_line(image, lanes):
+    """
+    Compute center line between left and right lane.
+    Returns center line coordinates and lateral error.
+    """
+    if lanes is None or len(lanes) != 2:
+        return None, None
+
+    left_lane, right_lane = lanes
+
+    # Extract points
+    _, y1, _, y2 = left_lane
+
+    left_x_bottom = left_lane[0]
+    right_x_bottom = right_lane[0]
+
+    center_x_bottom = int((left_x_bottom + right_x_bottom) / 2)
+
+    image_center_x = image.shape[1] // 2
+    error = center_x_bottom - image_center_x
+
+    center_line = np.array([
+        center_x_bottom, y1,
+        center_x_bottom, y2
+    ])
+
+    return center_line, error
 
 
 def detect_lanes(frame):
@@ -77,14 +104,33 @@ def detect_lanes(frame):
     )
 
     averaged_lines = average_lines(frame, lines)
+    center_line, error = compute_center_line(frame, averaged_lines)
 
     line_image = np.zeros_like(frame)
 
+    # Draw lane lines
     if averaged_lines is not None:
         for x1, y1, x2, y2 in averaged_lines:
             cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 8)
 
+    # Draw center line
+    if center_line is not None:
+        x1, y1, x2, y2 = center_line
+        cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 4)
+
+        cv2.putText(
+            line_image,
+            f"Steering error: {error}px",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 0, 255),
+            2
+        )
+
     return cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+
+
 
 
 def main():
